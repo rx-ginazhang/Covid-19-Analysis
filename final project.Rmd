@@ -1,0 +1,382 @@
+---
+title: "Final Project"
+output: html_notebook
+---
+
+Read in data 
+```{r}
+data_orgin = read.table('Ghosal2020.txt',sep = "\t",header = 1)
+data_orgin
+india = data_orgin[16,2:6]
+india2 = data_orgin[16,3:5]
+india3 = data_orgin[16,c(3,6)]
+data = data_orgin[1:15,]
+result = data[,7]
+result
+```
+
+```{r}
+fit <- lm(Week5deaths ~ Totalcases + Activecases +Recoverycases + Week4deaths + CFR, data = data)
+summary(fit)
+vif(fit)
+```
+From the coefficient, we can see that the week 5 death is largely determined by CFC. Also, we found out that the week 5 death is negatively accosiated with recovery cases, which is reasonable. 
+```{r}
+pairs(data[,2:7])
+```
+From the pairplot, we also can see that week5 death is slightly positive associated with total case, active case, whereas the week5 death is positively associated with CFC. (CFC is calculated based on other info)
+```{r}
+plot(fit$residuals, main = 'Residual plot', ylab = 'residuals')
+abline(0,0,col = 'red')
+
+qqnorm(fit$residuals)
+qqline(fit$residuals, col="red")
+```
+```{r}
+library(car)
+avPlots(fit)
+```
+
+
+### Prediction
+We want to predict week 5 death for india.
+prediction is 195.6021
+confidence interval for mean of predictions is [34.3962,356.808]
+```{r}
+predict(fit, newdata = data[,2:6])
+predict(fit, newdata = india)
+predict(fit, newdata = india,interval = "confidence")
+predict(fit, newdata = india,interval = "prediction")
+```
+
+### Outlier
+We did found outliers inside our dataset, which is China and Italy. We will analyze our fitting model by dropping info from china and italy, and then seperate 
+```{r}
+dropped= data[3:15,]
+drop_china = data[-1,]
+drop_italy= data[-2,]
+```
+
+```{r}
+fitnew <- lm(Week5deaths ~ Totalcases + Activecases +Recoverycases + Week4deaths + CFR, data = dropped)
+summary(fitnew)
+pairs(dropped[,2:7])
+plot(fitnew$residuals, main = 'Residual plot', ylab = 'residuals')
+abline(0,0,col = 'red')
+qqnorm(fitnew$residuals)
+qqline(fitnew$residuals, col="red")
+```
+```{r}
+fitchina <- lm(Week5deaths ~ Totalcases + Activecases +Recoverycases + Week4deaths + CFR, data = drop_china)
+summary(fitchina)
+pairs(drop_china[,2:7])
+plot(fitchina$residuals, main = 'Residual plot', ylab = 'residuals')
+abline(0,0,col = 'red')
+qqnorm(fitchina$residuals)
+qqline(fitchina$residuals, col="red")
+```
+```{r}
+fitita <- lm(Week5deaths ~ Totalcases + Activecases +Recoverycases + Week4deaths + CFR, data = drop_italy)
+summary(fitnew)
+pairs(drop_italy[,2:7])
+plot(fitita$residuals, main = 'Residual plot', ylab = 'residuals')
+abline(0,0,col = 'red')
+qqnorm(fitita$residuals)
+qqline(fitita$residuals, col="red")
+```
+
+Although r-square did not incrase much, the pair plot did correlate better. However, we found out the slope all some variables changed a lot, especially CFR, it turned from positive 30 to -5 for both counries dropped, 20 for china dropped and 5 for only italy dropped. We doubt our original linear regression.  
+
+## Scenario2
+As we can see in the first part, the patterns between each pair of variables are not linear. Also, the residual plot shows extreme outliers, which means the linear model is very sensitive to outliers. These extreme outliers are influential and may cause errors to our linear model. Therefore, we revise the model by taking a logarithmic transformation of the entire dataset to reduce the effect of some influential skewed data(outliers).
+
+But before we apply the logarithmic transformation of the dataset, we need first eliminate Brazil's data. That is because 'Week4deaths' and 'CFR' are both 0. If we take log of them, the entries will become '-inf' and cause errors.
+```{r}
+logdata<-data[-13,]
+logdata<-data.frame(logdata['Countries'],log(logdata['Totalcases']),log(logdata['Activecases']),log(logdata['Recoverycases']),log(logdata['Week4deaths']),log(logdata['CFR']),log(logdata['Week5deaths']))
+logdata
+```
+We draw the pair graph to see the pattern between each variable. Compare to the original pair graph, our new graph shows a noticeable linear relationship between each pair of variables.
+```{r}
+pairs(logdata[c("Totalcases", "Activecases", "Recoverycases","Week4deaths","CFR","Week5deaths")])
+```
+# fit
+We use our new dataset to fit a new linear model. Although R-square decreases a little bit, but it still shows good fit. 
+```{r}
+fit2 <- lm(Week5deaths~Totalcases+Activecases+Recoverycases+Week4deaths+CFR, data = logdata)
+summary(fit2)
+vif(fit2)
+```
+
+# regression diagnostics
+Now we do regression diagnostics of our new model.
+By comparing the qqplots for the first model and the second model, we can see our new model's residuals lie approximately along the line which indicates a better fit.
+Our new leverage plot also shows that our new model is less affected by outliers.
+```{r}
+qqPlot(fit, main = "QQ Plot")
+qqPlot(fit2, main="QQ Plot") #qq plot for studentized resid
+leveragePlots(fit) # leverage plots
+leveragePlots(fit2)
+```
+Moreover, we have less residuals that are outside of Cook's distance, which indicate that we have less influential outliers.
+However, in analysis of normality of residuals. We find that the first model's residuals are more likely to follow a normal distribution.
+```{r}
+plot(fit)
+plot(fit2)
+```
+
+# prediction
+Now, we use our new model to give a point estimate and a prediction interval for the number of deaths in India in week 5.
+We estimate the week5 death to be 93.87909 with 
+95% confidence interval to be [21.7043,406.0616]
+95% prediction interval to be [12.76397,690.4813]
+```{r}
+exp(predict(fit2,log(india),interval = "confidence"))
+exp(predict(fit2,log(india),interval = "prediction"))
+```
+
+The estimation using the second model differs from the first one.
+Scenerio 3
+```{r}
+
+```
+
+Scenerio 4
+Then we use model selection to check whether 
+
+# Model Selection
+
+```{r}
+set.seed(2020)
+k <- 5
+n <- 14
+val.size <- floor(n/k)
+folds_i <- sample(rep(1:k, length = n))
+cv.mse <- rep(0, k)
+ind.remain=1:n
+for (round in 1:k){
+  #val.ind <- sample(ind.remain, val.size, replace = FALSE)
+  val.ind <- which(folds_i == round)
+  fit<- lm(Week5deaths~Totalcases+Activecases+Recoverycases+Week4deaths+CFR, data = logdata[-val.ind,])
+  y.hat <- predict(fit, logdata[val.ind,-7])
+  cv.mse[round] <- mean((logdata[val.ind,7] - y.hat)^2)
+}
+mean(cv.mse)
+```
+
+
+```{r}
+library(MASS)
+library(datasets)
+library(olsrr)
+ols_step_backward_aic(fit, details = TRUE)
+```
+
+```{r}
+ols_step_backward_aic(fit2, details = TRUE)
+```
+
+
+```{r}
+library(MASS)
+step1 <- step(fit, direction="backward")
+step1$anova
+```
+
+
+```{r}
+library(MASS)
+step2 <- step(fit2, direction="backward")
+step2$anova
+```
+
+```{r}
+fit3 <- lm(Week5deaths~Totalcases + Activecases +Recoverycases + Week4deaths + CFR, data = data)#0.9701
+#first iteration delete totalcases
+fit3 <- lm(Week5deaths~Activecases +Recoverycases + Week4deaths + CFR, data = data)#0.9727
+fit3 <- lm(Week5deaths~Totalcases + Recoverycases + Week4deaths + CFR, data = data)#0.9712
+fit3 <- lm(Week5deaths~Totalcases + Activecases+Week4deaths + CFR, data = data)#0.9708
+fit3 <- lm(Week5deaths~Totalcases + Activecases +Recoverycases + CFR, data = data)#0.8991
+fit3 <- lm(Week5deaths~Totalcases + Activecases +Recoverycases + Week4deaths, data = data)#0.9715
+summary(fit3)
+#second iteration (delete CFR
+fit3 <- lm(Week5deaths~Recoverycases + Week4deaths + CFR, data = data)#0.9701
+fit3 <- lm(Week5deaths~Activecases + Week4deaths + CFR, data = data)#0.945 
+fit3 <- lm(Week5deaths~Activecases +Recoverycases + CFR, data = data)#0.8389
+fit3 <- lm(Week5deaths~Activecases +Recoverycases + Week4deaths, data = data)#0.974 use this
+#third iteration delete
+fit3 <- lm(Week5deaths~Recoverycases + Week4deaths, data = data)#0.9723
+fit3 <- lm(Week5deaths~Activecases + Week4deaths, data = data)#0.9491
+fit3 <- lm(Week5deaths~Activecases +Recoverycases, data = data)#0.7353
+summary(fit3)
+#decide to delete totalcases and CFR
+fit.ms1 <- lm(Week5deaths~Activecases +Recoverycases + Week4deaths, data = data)
+vif(fit.ms1)
+summary(fit.ms1)
+#predict
+predict(fit.ms1,india,interval = "confidence")
+predict(fit.ms1,india,interval = "prediction")
+
+```
+
+
+```{r}
+fit4 <- lm(Week5deaths~Totalcases + Activecases +Recoverycases + Week4deaths + CFR, data = logdata)#0.9038
+
+#first delete recoverycases
+fit4 <- lm(Week5deaths~Activecases +Recoverycases + Week4deaths + CFR, data = logdata)#0.9114
+fit4 <- lm(Week5deaths~Totalcases +Recoverycases + Week4deaths + CFR, data = logdata)#0.9078
+fit4 <- lm(Week5deaths~Totalcases + Activecases + Week4deaths + CFR, data = logdata)#0.9133
+fit4 <- lm(Week5deaths~Totalcases + Activecases +Recoverycases + CFR, data = logdata)#0.9113
+fit4 <- lm(Week5deaths~Totalcases + Activecases +Recoverycases + Week4deaths,data = logdata)#0.9113
+#second delete total
+fit4 <- lm(Week5deaths~Activecases + Week4deaths + CFR, data = logdata)#0.9184
+fit4 <- lm(Week5deaths~Totalcases + Week4deaths + CFR, data = logdata)#0.9112
+fit4 <- lm(Week5deaths~Totalcases + Activecases + CFR, data = logdata)#0.9183
+fit4 <- lm(Week5deaths~Totalcases + Activecases + Week4deaths, data = logdata)#0.9182
+#Third delete week4deaths
+fit4 <- lm(Week5deaths~ Week4deaths + CFR, data = logdata)#0.9132
+fit4 <- lm(Week5deaths~Activecases  + CFR, data = logdata)#0.9201 use this
+fit4 <- lm(Week5deaths~Activecases + Week4deaths, data = logdata)#0.9107
+#fourth 
+fit4 <- lm(Week5deaths~CFR, data = logdata)#0.4717
+fit4 <- lm(Week5deaths~Activecases, data = logdata)#0.5951
+summary(fit4)
+#decide to delete recovery total week4
+fit.ms2 <- lm(Week5deaths~Activecases  + CFR, data = logdata)
+summary(fit.ms2)
+#predict
+exp(predict(fit.ms2,log(india),interval = "confidence"))
+exp(predict(fit.ms2,log(india),interval = "prediction"))
+
+```
+
+#check collinearity and choose model
+```{r}
+vif(fit.ms1) #too large
+vif(fit.ms2) #use this
+plot(fit.ms2)
+```
+
+
+
+```{r}
+gdp<-read.csv('GDP.csv',header = TRUE)
+gdp<-gdp[,c("Country.Name","X2018") ]
+row.names(gdp) <-  1:nrow(gdp)
+levels(gdp$Country.Name) <- c(levels(gdp$Country.Name), "UK")
+gdp$Country.Name[gdp$Country.Name == 'United Kingdom'] <- 'UK'
+levels(gdp$Country.Name) <- c(levels(gdp$Country.Name), "USA")
+gdp$Country.Name[gdp$Country.Name == 'United States'] <- 'USA'
+levels(gdp$Country.Name) <- c(levels(gdp$Country.Name), "Iran")
+gdp$Country.Name[gdp$Country.Name == 'Iran, Islamic Rep.'] <- 'Iran'
+levels(gdp$Country.Name) <- c(levels(gdp$Country.Name), "South Korea")
+gdp$Country.Name[gdp$Country.Name == 'Korea, Rep.'] <- 'South Korea'
+gdp
+```
+
+```{r}
+data
+
+```
+
+
+```{r}
+col=data_orgin$Countries
+gdp<-gdp[gdp$Country.Name %in% col,]
+library(plyr)
+gdp<-rename(gdp, c("Country.Name"="Countries", "X2018"="GDP"))
+gdp
+```
+
+
+```{r}
+total_origin <- merge(data_orgin,gdp,by=c("Countries"))
+total_origin
+india.new = total_origin[16,2:6]
+india2.new = total_origin[16,c(3,4,5,8)]
+india3.new= total_origin[16,c(3,4,5,6,8)]
+total = total_origin[-7,]
+total
+```
+
+```{r}
+fit.new1 <- lm(Week5deaths~Activecases +Recoverycases + Week4deaths+GDP, data = total)
+summary(fit.new1)
+
+```
+
+
+```{r}
+predict(fit.new1,india2.new,interval = "confidence")
+predict(fit.new1,india2.new,interval = "prediction")
+```
+
+
+```{r}
+elder<-read.csv('Elder Percentage.csv',header = TRUE)
+elder
+```
+
+
+```{r}
+
+elder<-elder[,c("Country.Name","X2018") ]
+row.names(elder) <-  1:nrow(elder)
+levels(elder$Country.Name) <- c(levels(elder$Country.Name), "UK")
+elder$Country.Name[elder$Country.Name == 'United Kingdom'] <- 'UK'
+levels(elder$Country.Name) <- c(levels(elder$Country.Name), "USA")
+elder$Country.Name[elder$Country.Name == 'United States'] <- 'USA'
+levels(elder$Country.Name) <- c(levels(elder$Country.Name), "Iran")
+elder$Country.Name[elder$Country.Name == 'Iran, Islamic Rep.'] <- 'Iran'
+levels(elder$Country.Name) <- c(levels(elder$Country.Name), "South Korea")
+elder$Country.Name[elder$Country.Name == 'Korea, Rep.'] <- 'South Korea'
+
+```
+
+
+```{r}
+elder<-elder[elder$Country.Name %in% col,]
+library(plyr)
+elder<-rename(elder, c("Country.Name"="Countries", "X2018"="elder_percentage"))
+elder
+```
+
+
+```{r}
+total_origin <- merge(total_origin,elder,by=c("Countries"))
+total_origin
+india.new = total_origin[16,2:6]
+india2.new = total_origin[16,c(3,4,5,6,8,9)]
+india3.new= total_origin[16,c(3,4,5,6,8,9)]
+total = total_origin[-7,]
+total
+india2.new
+```
+
+
+```{r}
+fit.new2 <- lm(Week5deaths~Activecases +Recoverycases + Week4deaths+GDP+elder_percentage, data = total)
+summary(fit.new2)
+predict(fit.new2,india2.new,interval = "confidence")
+predict(fit.new2,india2.new,interval = "prediction")
+```
+## final model from advance analysis
+```{r}
+logtot <- data.frame(total['Countries'],log(total['Totalcases']),log(total['Activecases']),log(total['Recoverycases']),log(total['Week4deaths']),log(total['CFR']),log(total['Week5deaths']),log(total['GDP']),log(total['elder_percentage']))
+logtot <- logtot[-3,]
+logtot
+fitt <- lm(Week5deaths~Activecases  + CFR +GDP+ elder_percentage, data = logtot)
+vif(fitt)
+summary(fitt)
+fit.final <- lm(Week5deaths~Activecases  + CFR +elder_percentage, data = logtot)
+vif(fit.final)
+summary(fit.final)
+indiapre <- total_origin[7,c(2:11)]
+indiapre
+exp(predict(fit.final,log(indiapre),interval = "confidence"))
+exp(predict(fit.final,log(indiapre),interval = "prediction"))
+#so our final model is fit.final
+```
+
+
